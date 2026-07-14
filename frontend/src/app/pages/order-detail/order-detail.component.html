@@ -1,0 +1,63 @@
+<a routerLink="/orders" class="back-link">← Aufträge</a>
+
+@if (loading) {
+  <div class="card">Lade Auftrag…</div>
+}
+
+@if (errorMessage) {
+  <p class="error">{{ errorMessage }}</p>
+}
+
+@if (order; as o) {
+  <div class="page-header">
+    <div>
+      <h1 class="mono">{{ o.externalOrderNumber }}</h1>
+      <p class="subtitle">Angelegt am {{ o.createdAt | date: 'dd.MM.yyyy, HH:mm' }}</p>
+    </div>
+    @if (!o.shipment) {
+      <button
+        class="btn-primary"
+        [disabled]="creatingShipment"
+        (click)="createShipment()"
+      >
+        {{ creatingShipment ? 'Wird erzeugt…' : 'Sendung erzeugen' }}
+      </button>
+    }
+    @if (o.shipment) {
+      <a class="btn-secondary" [routerLink]="['/shipments', o.shipment.id]">
+        Zur Sendung →
+      </a>
+    }
+  </div>
+
+  <div class="card section">
+    <h3>Lieferadresse</h3>
+    <p>
+      {{ o.deliveryAddress.street }}<br />
+      {{ o.deliveryAddress.zipCode }} {{ o.deliveryAddress.city }}<br />
+      {{ o.deliveryAddress.country }}
+    </p>
+  </div>
+
+  <div class="card section">
+    <h3>Positionen</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Artikelnummer</th>
+          <th>Menge</th>
+          <th>Beschreibung</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of o.positions; track p.sku) {
+          <tr>
+            <td class="mono">{{ p.sku }}</td>
+            <td>{{ p.quantity }}</td>
+            <td>{{ p.description || '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

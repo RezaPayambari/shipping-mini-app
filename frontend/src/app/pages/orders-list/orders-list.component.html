@@ -1,0 +1,112 @@
+<div class="page-header">
+  <div>
+    <h1>Aufträge</h1>
+    <p class="subtitle">Erfasste Aufträge und ihr Versandstatus.</p>
+  </div>
+  <button class="btn-primary" (click)="showForm = !showForm">
+    {{ showForm ? 'Abbrechen' : '+ Neuer Auftrag' }}
+  </button>
+</div>
+
+@if (showForm) {
+  <form class="card form" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="form-row">
+      <label>
+        Externe Auftragsnummer
+        <input type="text" formControlName="externalOrderNumber" placeholder="ORD-1001" />
+      </label>
+    </div>
+
+    <fieldset class="address">
+      <legend>Lieferadresse</legend>
+      <div class="form-row two-col">
+        <label>
+          Straße
+          <input type="text" formControlName="street" placeholder="Hauptstr. 1" />
+        </label>
+        <label>
+          PLZ
+          <input type="text" formControlName="zipCode" placeholder="44787" />
+        </label>
+      </div>
+      <div class="form-row two-col">
+        <label>
+          Ort
+          <input type="text" formControlName="city" placeholder="Bochum" />
+        </label>
+        <label>
+          Land
+          <input type="text" formControlName="country" placeholder="DE" />
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="positions" formArrayName="positions">
+      <legend>Positionen</legend>
+      @for (pos of positions.controls; track $index; let i = $index) {
+        <div [formGroupName]="i" class="position-row">
+          <input type="text" formControlName="sku" placeholder="Artikelnummer" class="sku" />
+          <input type="number" formControlName="quantity" placeholder="Menge" min="1" class="qty" />
+          <input type="text" formControlName="description" placeholder="Beschreibung (optional)" class="desc" />
+          <button type="button" class="btn-icon" (click)="removePosition(i)" [disabled]="positions.length === 1" title="Position entfernen">
+            ✕
+          </button>
+        </div>
+      }
+      <button type="button" class="btn-secondary" (click)="addPosition()">+ Position hinzufügen</button>
+    </fieldset>
+
+    @if (formError) {
+      <p class="error">{{ formError }}</p>
+    }
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary" [disabled]="submitting">
+        {{ submitting ? 'Wird angelegt…' : 'Auftrag anlegen' }}
+      </button>
+    </div>
+  </form>
+}
+
+@if (loading) {
+  <div class="card">Lade Aufträge…</div>
+}
+
+@if (errorMessage) {
+  <p class="error">{{ errorMessage }}</p>
+}
+
+@if (!loading && orders.length) {
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Auftragsnummer</th>
+        <th>Lieferort</th>
+        <th>Positionen</th>
+        <th>Sendung</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (order of orders; track order.id) {
+        <tr [routerLink]="['/orders', order.id]" class="row-link">
+          <td class="mono">{{ order.externalOrderNumber }}</td>
+          <td>{{ order.deliveryAddress.city }}, {{ order.deliveryAddress.country }}</td>
+          <td>{{ order.positions.length }}</td>
+          <td>
+            <span class="badge" [class]="'badge-' + (order.shipment?.status ?? 'none')">
+              {{ order.shipment ? order.shipment.status : '— keine —' }}
+            </span>
+          </td>
+          <td class="chevron">›</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+@if (!loading && !orders.length) {
+  <div class="card empty">
+    Noch keine Aufträge erfasst. Lege oben den ersten Auftrag an.
+  </div>
+}

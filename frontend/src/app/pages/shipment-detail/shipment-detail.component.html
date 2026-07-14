@@ -1,0 +1,73 @@
+<a routerLink="/shipments" class="back-link">← Sendungen</a>
+
+@if (loading) {
+  <div class="card">Lade Sendung…</div>
+}
+
+@if (errorMessage) {
+  <p class="error">{{ errorMessage }}</p>
+}
+
+@if (shipment; as s) {
+  <div class="page-header">
+    <div>
+      <h1 class="mono">Sendung · {{ s.externalOrderNumber }}</h1>
+      @if (s.shippedAt) {
+        <p class="subtitle">Versendet am {{ s.shippedAt | date: 'dd.MM.yyyy, HH:mm' }}</p>
+      } @else {
+        <p class="subtitle">Noch nicht versendet.</p>
+      }
+    </div>
+    <a class="btn-secondary" [routerLink]="['/orders', s.orderId]">Zum Auftrag →</a>
+  </div>
+
+  <div class="card section pipeline-card">
+    <app-status-pipeline [status]="s.status"></app-status-pipeline>
+  </div>
+
+  @if (actionError) {
+    <p class="error">{{ actionError }}</p>
+  }
+
+  <div class="card section">
+    <h3>Pakete</h3>
+    @for (pkg of s.packages; track pkg.id) {
+      <div class="package">
+        <form [formGroup]="labelForm(pkg.id)" (ngSubmit)="labelPackage(pkg.id)" class="package-form">
+          <label>
+            Tracking-Code
+            <input type="text" formControlName="trackingCode" placeholder="DHL123456789" class="mono" />
+          </label>
+          <label>
+            Carrier
+            <input type="text" formControlName="carrier" placeholder="DHL" />
+          </label>
+          <button type="submit" class="btn-secondary" [disabled]="actionPending || s.status === 'SHIPPED'">
+            Label speichern
+          </button>
+          @if (pkg.trackingCode) {
+            <span class="badge badge-PACKED">gelabelt</span>
+          }
+        </form>
+      </div>
+    }
+  </div>
+
+  <div class="card section actions">
+    <h3>Aktionen</h3>
+    <div class="action-row">
+      <button class="btn-primary" [disabled]="!canPack || actionPending" (click)="pack()">
+        Packen bestätigen (→ PACKED)
+      </button>
+      <button class="btn-primary" [disabled]="!canShip || actionPending" (click)="ship()">
+        Versand bestätigen (→ SHIPPED)
+      </button>
+    </div>
+    @if (s.status === 'CREATED') {
+      <p class="subtitle">Erst alle Pakete labeln, dann packen und anschließend versenden.</p>
+    }
+    @if (s.status === 'PACKED' && !canShip) {
+      <p class="subtitle">Versand erst möglich, wenn alle Pakete einen Tracking-Code haben.</p>
+    }
+  </div>
+}
