@@ -1,0 +1,734 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Shipping Mini API",
+    "description": "REST API for managing orders and shipments. Covers the full lifecycle: creating orders, creating shipments from orders, labeling packages with tracking codes and carriers, and transitioning shipments through CREATED → PACKED → SHIPPED states.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Orders",
+      "description": "Operations for creating and querying orders"
+    },
+    {
+      "name": "Shipments",
+      "description": "Operations for managing shipments and package labeling"
+    }
+  ],
+  "paths": {
+    "/api/v1/orders": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Create a new order",
+        "operationId": "createOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              },
+              "example": {
+                "externalOrderNumber": "EXT-2024-001",
+                "deliveryAddress": {
+                  "street": "123 Main St",
+                  "zipCode": "10001",
+                  "city": "New York",
+                  "country": "US"
+                },
+                "positions": [
+                  {
+                    "sku": "SKU-ABC-001",
+                    "quantity": 2,
+                    "description": "Wireless headphones"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "headers": {
+              "Location": {
+                "description": "URI of the newly created order",
+                "schema": {
+                  "type": "string",
+                  "example": "/api/v1/orders/550e8400-e29b-41d4-a716-446655440000"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error — one or more fields failed bean validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — an order with the same externalOrderNumber already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List all orders",
+        "operationId": "listOrders",
+        "responses": {
+          "200": {
+            "description": "List of all orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get an order by ID",
+        "operationId": "getOrderById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the order",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments": {
+      "get": {
+        "tags": ["Shipments"],
+        "summary": "Search / filter shipments",
+        "operationId": "listShipments",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by shipment status",
+            "schema": {
+              "$ref": "#/components/schemas/ShipmentStatus"
+            }
+          },
+          {
+            "name": "carrier",
+            "in": "query",
+            "required": false,
+            "description": "Filter by carrier name (e.g. DHL, UPS)",
+            "schema": {
+              "type": "string",
+              "example": "DHL"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of shipments matching the filter criteria. Returns all shipments when no filters are provided.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShipmentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/order/{orderId}": {
+      "post": {
+        "tags": ["Shipments"],
+        "summary": "Create a shipment for an order",
+        "description": "Creates a new shipment for the given order. One package is automatically created per order position. Each order can have at most one shipment.",
+        "operationId": "createShipment",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the order to create a shipment for",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Shipment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A shipment already exists for this order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}": {
+      "get": {
+        "tags": ["Shipments"],
+        "summary": "Get a shipment by ID",
+        "operationId": "getShipmentById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the shipment",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{shipmentId}/packages/{packageId}": {
+      "patch": {
+        "tags": ["Shipments"],
+        "summary": "Label a package",
+        "description": "Assigns a tracking code and carrier to a specific package within a shipment. All packages must be labeled before the shipment can be packed.",
+        "operationId": "labelPackage",
+        "parameters": [
+          {
+            "name": "shipmentId",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the shipment",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "packageId",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the package to label",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabelPackageRequest"
+              },
+              "example": {
+                "trackingCode": "1Z999AA10123456784",
+                "carrier": "UPS"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Package labeled successfully. Returns the updated shipment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error — trackingCode or carrier is blank",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment or package not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/pack": {
+      "post": {
+        "tags": ["Shipments"],
+        "summary": "Pack a shipment (CREATED → PACKED)",
+        "description": "Transitions a shipment from CREATED to PACKED status. **All packages must have a tracking code assigned** before this transition is allowed. Returns 422 if the shipment is not in CREATED status or if any package is still unlabeled.",
+        "operationId": "packShipment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the shipment to pack",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment successfully transitioned to PACKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid state transition — shipment is not in CREATED status, or not all packages have a tracking code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/ship": {
+      "post": {
+        "tags": ["Shipments"],
+        "summary": "Ship a shipment (PACKED → SHIPPED)",
+        "description": "Transitions a shipment from PACKED to SHIPPED status. Sets the `shippedAt` timestamp. Returns 422 if the shipment is not in PACKED status.",
+        "operationId": "shipShipment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the shipment to ship",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shipment successfully transitioned to SHIPPED. The `shippedAt` field is now populated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shipment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid state transition — shipment is not in PACKED status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": ["externalOrderNumber", "deliveryAddress", "positions"],
+        "properties": {
+          "externalOrderNumber": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique external reference number for the order. Must not be blank.",
+            "example": "EXT-2024-001"
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/AddressDto"
+          },
+          "positions": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Order line items. Must contain at least one position.",
+            "items": {
+              "$ref": "#/components/schemas/OrderPositionDto"
+            }
+          }
+        }
+      },
+      "LabelPackageRequest": {
+        "type": "object",
+        "required": ["trackingCode", "carrier"],
+        "properties": {
+          "trackingCode": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Carrier-assigned tracking code for the package. Must not be blank.",
+            "example": "1Z999AA10123456784"
+          },
+          "carrier": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the shipping carrier. Must not be blank.",
+            "example": "UPS"
+          }
+        }
+      },
+      "AddressDto": {
+        "type": "object",
+        "required": ["street", "zipCode", "city", "country"],
+        "properties": {
+          "street": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Street name and house number. Must not be blank.",
+            "example": "123 Main St"
+          },
+          "zipCode": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Postal / ZIP code. Must not be blank.",
+            "example": "10001"
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "description": "City name. Must not be blank.",
+            "example": "New York"
+          },
+          "country": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ISO country code or country name. Must not be blank.",
+            "example": "US"
+          }
+        }
+      },
+      "OrderPositionDto": {
+        "type": "object",
+        "required": ["sku", "quantity"],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stock-keeping unit identifier. Must not be blank.",
+            "example": "SKU-ABC-001"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of units ordered. Must be at least 1.",
+            "example": 2
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional human-readable description of the product.",
+            "example": "Wireless headphones"
+          }
+        }
+      },
+      "OrderResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Auto-generated UUID of the order",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "externalOrderNumber": {
+            "type": "string",
+            "description": "External reference number",
+            "example": "EXT-2024-001"
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/AddressDto"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OrderStatus"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderPositionDto"
+            }
+          },
+          "shipment": {
+            "nullable": true,
+            "description": "Summary of the associated shipment. Null if no shipment has been created for this order yet.",
+            "allOf": [
+              { "$ref": "#/components/schemas/ShipmentSummaryDto" }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 UTC timestamp of when the order was created",
+            "example": "2024-06-01T10:30:00Z"
+          }
+        }
+      },
+      "ShipmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Auto-generated UUID of the shipment",
+            "example": "660e8400-e29b-41d4-a716-446655440001"
+          },
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID of the parent order",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "externalOrderNumber": {
+            "type": "string",
+            "description": "External reference number inherited from the parent order",
+            "example": "EXT-2024-001"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "shippedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "ISO-8601 UTC timestamp of when the shipment was shipped. Null until POST /ship is called.",
+            "example": "2024-06-02T14:00:00Z"
+          },
+          "packages": {
+            "type": "array",
+            "description": "One package per order position, created automatically when the shipment is created.",
+            "items": {
+              "$ref": "#/components/schemas/PackageDto"
+            }
+          }
+        }
+      },
+      "ShipmentSummaryDto": {
+        "type": "object",
+        "description": "Lightweight shipment summary embedded inside an OrderResponse",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID of the shipment",
+            "example": "660e8400-e29b-41d4-a716-446655440001"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          }
+        }
+      },
+      "PackageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Auto-generated UUID of the package",
+            "example": "770e8400-e29b-41d4-a716-446655440002"
+          },
+          "trackingCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "Carrier tracking code. Null until the package has been labeled via PATCH .../packages/{packageId}.",
+            "example": "1Z999AA10123456784"
+          },
+          "carrier": {
+            "type": "string",
+            "nullable": true,
+            "description": "Carrier name. Null until the package has been labeled via PATCH .../packages/{packageId}.",
+            "example": "UPS"
+          }
+        }
+      },
+      "OrderStatus": {
+        "type": "string",
+        "description": "Current status of an order",
+        "enum": ["CREATED"],
+        "example": "CREATED"
+      },
+      "ShipmentStatus": {
+        "type": "string",
+        "description": "Current status of a shipment. Follows the state machine: CREATED → PACKED → SHIPPED.",
+        "enum": ["CREATED", "PACKED", "SHIPPED"],
+        "example": "CREATED"
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Uniform error envelope returned for all error responses",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO-8601 UTC timestamp of when the error occurred",
+            "example": "2024-06-01T10:30:00Z"
+          },
+          "status": {
+            "type": "integer",
+            "description": "HTTP status code",
+            "example": 404
+          },
+          "error": {
+            "type": "string",
+            "description": "HTTP status reason phrase",
+            "example": "Not Found"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error description",
+            "example": "Order with id 550e8400-e29b-41d4-a716-446655440000 not found"
+          }
+        }
+      }
+    }
+  }
+}
