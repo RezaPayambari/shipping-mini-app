@@ -8,7 +8,6 @@ import com.picard.shipping.exception.ConflictException;
 import com.picard.shipping.exception.NotFoundException;
 import com.picard.shipping.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +16,6 @@ import java.util.UUID;
 
 @Service
 @Transactional
-@Slf4j
 @RequiredArgsConstructor
 public class OrderService
 {
@@ -58,10 +56,7 @@ public class OrderService
     public OrderResponse getOrder(UUID id)
     {
         Order order = orderRepository.findById(id)
-            .orElseThrow(() -> {
-                log.error("Order with id {} not found", id);
-                return new NotFoundException("Order not found: " + id);
-            });
+            .orElseThrow(() -> new NotFoundException("Order not found: " + id));
         return toResponse(order);
     }
 
@@ -77,10 +72,7 @@ public class OrderService
     public Order getOrderEntity(UUID id)
     {
         return orderRepository.findById(id)
-            .orElseThrow(() -> {
-                log.error("Order with id {} not found", id);
-                return new NotFoundException("Order not found: " + id);
-            });
+            .orElseThrow(() -> new NotFoundException("Order not found: " + id));
     }
 
     private OrderResponse toResponse(Order order)
