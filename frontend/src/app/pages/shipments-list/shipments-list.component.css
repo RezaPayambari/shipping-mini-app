@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.filter-bar label {
+  min-width: 160px;
+}

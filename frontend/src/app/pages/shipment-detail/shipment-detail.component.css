@@ -1,0 +1,34 @@
+:host {
+  display: block;
+}
+
+.pipeline-card {
+  display: flex;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.package {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.package:last-child {
+  border-bottom: none;
+}
+
+.package-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.package-form label {
+  flex: 1;
+}
+
+.action-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 10px;
+}

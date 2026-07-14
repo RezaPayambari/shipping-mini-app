@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shipping-postgres
+    environment:
+      POSTGRES_DB: shipping
+      POSTGRES_USER: ${DB_USER:-shipping}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shipping}
+    ports:
+      - "5432:5432"
+    volumes:
+      - shipping-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipping -d shipping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  shipping-pgdata:

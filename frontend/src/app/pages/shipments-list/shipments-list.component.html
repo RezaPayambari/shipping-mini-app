@@ -1,0 +1,67 @@
+<div class="page-header">
+  <div>
+    <h1>Sendungen</h1>
+    <p class="subtitle">Suche &amp; Filter über alle Sendungen.</p>
+  </div>
+</div>
+
+<div class="card filter-bar">
+  <label>
+    Status
+    <select [(ngModel)]="statusFilter" (ngModelChange)="search()">
+      <option [ngValue]="undefined">Alle</option>
+      <option value="CREATED">CREATED</option>
+      <option value="PACKED">PACKED</option>
+      <option value="SHIPPED">SHIPPED</option>
+    </select>
+  </label>
+  <label>
+    Carrier
+    <input type="text" [(ngModel)]="carrierFilter" placeholder="z. B. DHL" (keyup.enter)="search()" />
+  </label>
+  <button class="btn-primary" (click)="search()">Suchen</button>
+  <button class="btn-secondary" (click)="resetFilters()">Zurücksetzen</button>
+</div>
+
+@if (loading) {
+  <div class="card">Lade Sendungen…</div>
+}
+
+@if (errorMessage) {
+  <p class="error">{{ errorMessage }}</p>
+}
+
+@if (!loading && shipments.length) {
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Auftragsnummer</th>
+        <th>Status</th>
+        <th>Pakete</th>
+        <th>Tracking</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of shipments; track s.id) {
+        <tr [routerLink]="['/shipments', s.id]" class="row-link">
+          <td class="mono">{{ s.externalOrderNumber }}</td>
+          <td><span class="badge" [class]="'badge-' + s.status">{{ s.status }}</span></td>
+          <td>{{ s.packages.length }}</td>
+          <td class="mono">
+            @for (p of s.packages; track p.id) {
+              {{ p.trackingCode || '—' }}{{ ' ' }}
+            }
+          </td>
+          <td class="chevron">›</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+@if (!loading && !shipments.length) {
+  <div class="card empty">
+    Keine Sendungen für diese Filterkriterien gefunden.
+  </div>
+}
